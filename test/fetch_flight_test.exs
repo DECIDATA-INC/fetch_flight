@@ -94,32 +94,32 @@ defmodule FetchFlightTest do
       end)
     end
 
-    test "every leg has valid [year, month, day] departure and arrival dates", %{flights: flights} do
+    test "every leg has Date departure and arrival dates", %{flights: flights} do
       all_legs = Enum.flat_map(flights, & &1.flights)
 
       Enum.each(all_legs, fn leg ->
         for dt <- [leg.departure, leg.arrival] do
-          [year, month, day] = dt.date
-          assert is_integer(year) and year >= 2026
-          assert is_integer(month) and month in 1..12
-          assert is_integer(day) and day in 1..31
+          assert %Date{year: year} = dt.date
+          assert year >= 2026
         end
       end)
     end
 
-    test "every leg time is a list of 1-2 non-negative integers", %{flights: flights} do
+    test "every leg has Time departure and arrival times", %{flights: flights} do
       all_legs = Enum.flat_map(flights, & &1.flights)
 
       Enum.each(all_legs, fn leg ->
-        for dt <- [leg.departure, leg.arrival] do
-          assert is_list(dt.time) and length(dt.time) in 1..2,
-                 "expected [h] or [h, m], got #{inspect(dt.time)}"
+        assert %Time{} = leg.departure.time
+        assert %Time{} = leg.arrival.time
+      end)
+    end
 
-          Enum.each(dt.time, fn v ->
-            assert is_nil(v) or (is_integer(v) and v >= 0),
-                   "expected non-negative integer in time, got #{inspect(v)}"
-          end)
-        end
+    test "every leg has an airline code and a flight number", %{flights: flights} do
+      all_legs = Enum.flat_map(flights, & &1.flights)
+
+      Enum.each(all_legs, fn leg ->
+        assert leg.airline_code =~ ~r/^[A-Z0-9]{2}$/
+        assert leg.flight_number =~ ~r/^\d{1,4}$/
       end)
     end
 

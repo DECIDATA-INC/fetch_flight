@@ -26,4 +26,4 @@ fetch_flight-*.tar
 /tmp/
 
 # Claude folder
-/.claude/
+/.claude/.mise.toml

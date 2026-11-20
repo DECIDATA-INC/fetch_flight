@@ -4,7 +4,7 @@ defmodule FetchFlight.Airport do
 end
 
 defmodule FetchFlight.SimpleDatetime do
-  @type t :: %__MODULE__{date: [integer()] | nil, time: [integer()] | nil}
+  @type t :: %__MODULE__{date: Date.t() | nil, time: Time.t() | nil}
   defstruct [:date, :time]
 end
 
@@ -15,9 +15,22 @@ defmodule FetchFlight.SingleFlight do
           departure: FetchFlight.SimpleDatetime.t() | nil,
           arrival: FetchFlight.SimpleDatetime.t() | nil,
           duration_minutes: integer() | nil,
-          plane_type: String.t() | nil
+          plane_type: String.t() | nil,
+          airline_code: String.t() | nil,
+          airline_name: String.t() | nil,
+          flight_number: String.t() | nil
         }
-  defstruct [:from_airport, :to_airport, :departure, :arrival, :duration_minutes, :plane_type]
+  defstruct [
+    :from_airport,
+    :to_airport,
+    :departure,
+    :arrival,
+    :duration_minutes,
+    :plane_type,
+    :airline_code,
+    :airline_name,
+    :flight_number
+  ]
 end
 
 defmodule FetchFlight.CarbonEmission do

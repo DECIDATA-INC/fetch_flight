@@ -1,8 +1,8 @@
 defmodule FetchFlight.MixProject do
   use Mix.Project
 
-  @version "0.4.0"
-  @source_url "https://github.com/samuelpordeus/fetch_flight"
+  @version "0.5.0"
+  @source_url "https://github.com/DECIDATA-INC/fetch_flight"
 
   def project do
     [
@@ -44,7 +44,11 @@ defmodule FetchFlight.MixProject do
       {:req, "~> 0.5"},
       {:floki, "~> 0.38"},
       {:jason, "~> 1.4"},
-      {:playwright, "~> 1.49.1-alpha.2"},
+      # Only needed by get_price_graph/1. Consumers that only call get_flights/2
+      # can leave it out and skip the headless Chromium.
+      {:playwright, "~> 1.49.1-alpha.2", optional: true},
+      # playwright -> gun -> cowlib 2.11 does not compile on OTP 28.
+      {:cowlib, "~> 2.15", override: true, optional: true},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false}
     ]
   end

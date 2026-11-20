@@ -5,7 +5,7 @@ defmodule FetchFlight.Application do
 
   @impl true
   def start(_type, _args) do
-    children = [FetchFlight.Browser]
+    children = if Code.ensure_loaded?(FetchFlight.Browser), do: [FetchFlight.Browser], else: []
 
     Supervisor.start_link(children, strategy: :one_for_one, name: FetchFlight.Supervisor)
   end

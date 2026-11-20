@@ -15,10 +15,15 @@ Two entry points:
 ```elixir
 def deps do
   [
-    {:fetch_flight, "~> 0.2"}
+    {:fetch_flight, "~> 0.5"}
   ]
 end
 ```
+
+`get_price_graph/1` drives a headless Chromium through the optional
+`:playwright` dependency. Add `{:playwright, "~> 1.49.1-alpha.2"}` to your deps
+only if you use it; without it, `get_flights/2` works and `get_price_graph/1`
+returns `{:error, :playwright_not_installed}`.
 
 ## Usage
 
@@ -177,18 +182,24 @@ Results are sorted by `start_date` ascending:
     %FetchFlight.SingleFlight{
       from_airport: %FetchFlight.Airport{code: "SFO", name: "San Francisco International Airport"},
       to_airport:   %FetchFlight.Airport{code: "JFK", name: "John F. Kennedy International Airport"},
-      departure: %FetchFlight.SimpleDatetime{date: [2026, 5, 1], time: [7, 0]},
-      arrival:   %FetchFlight.SimpleDatetime{date: [2026, 5, 1], time: [15, 28]},
+      departure: %FetchFlight.SimpleDatetime{date: ~D[2026-05-01], time: ~T[07:00:00]},
+      arrival:   %FetchFlight.SimpleDatetime{date: ~D[2026-05-01], time: ~T[15:28:00]},
       duration_minutes: 328,
-      plane_type: "Boeing 767"
+      plane_type: "Boeing 767",
+      airline_code: "DL",
+      airline_name: "Delta",
+      flight_number: "1234"
     }
   ]
 }
 ```
 
 **`SimpleDatetime` format**
-- `:date` — `[year, month, day]`
-- `:time` — `[hour, minute]`, or `[hour]` when minutes = 0
+- `:date` — `Date`
+- `:time` — `Time`, local to the airport (Google omits zero components; they are expanded)
+
+Results merge Google's "Top flights" and "All flights" blocks (the cheapest
+options often appear only in the first) and are deduplicated by legs.
 
 ### `get_price_graph/1`
 

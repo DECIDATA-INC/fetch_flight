@@ -11,7 +11,7 @@ defmodule FetchFlight.ParserTest do
   defp build_payload do
     # payload[3][0] = flight rows
     # payload[7][1][0] = alliances, payload[7][1][1] = airlines
-    single_flight = List.duplicate(nil, 22)
+    single_flight = List.duplicate(nil, 23)
 
     single_flight =
       single_flight
@@ -19,12 +19,13 @@ defmodule FetchFlight.ParserTest do
       |> List.replace_at(4, "San Francisco International")
       |> List.replace_at(5, "John F. Kennedy International")
       |> List.replace_at(6, "JFK")
-      |> List.replace_at(8, "8:00 AM")
-      |> List.replace_at(10, "4:30 PM")
+      |> List.replace_at(8, [8])
+      |> List.replace_at(10, [16, 30])
       |> List.replace_at(11, 330)
       |> List.replace_at(17, "Boeing 737")
-      |> List.replace_at(20, "2026-03-15")
-      |> List.replace_at(21, "2026-03-15")
+      |> List.replace_at(20, [2026, 3, 15])
+      |> List.replace_at(21, [2026, 3, 15])
+      |> List.replace_at(22, ["UA", "1234", nil, "United"])
 
     carbon_extras =
       List.duplicate(nil, 9) |> List.replace_at(7, 180_000) |> List.replace_at(8, 200_000)
@@ -88,8 +89,11 @@ defmodule FetchFlight.ParserTest do
     assert leg.to_airport.code == "JFK"
     assert leg.duration_minutes == 330
     assert leg.plane_type == "Boeing 737"
-    assert leg.departure.time == "8:00 AM"
-    assert leg.arrival.time == "4:30 PM"
+    assert leg.departure.date == ~D[2026-03-15]
+    assert leg.departure.time == ~T[08:00:00]
+    assert leg.arrival.time == ~T[16:30:00]
+    assert leg.airline_code == "UA"
+    assert leg.flight_number == "1234"
   end
 
   test "parses carbon emissions" do
@@ -106,5 +110,49 @@ defmodule FetchFlight.ParserTest do
     payload = List.replace_at(payload, 7, meta)
     html = build_html(payload)
     assert {:ok, {_meta, []}} = Parser.parse(html)
+  end
+
+  describe "Google Flights real response (GRU-FOR, 2026-12-10, nonstop)" do
+    setup do
+      {:ok, html: File.read!("test/fixtures/gru_for_2026_12_10.html")}
+    end
+
+    # Top flights (payload[2][0]) holds the cheapest options, which are absent
+    # from All flights (payload[3][0]); fast-flights (Python) drops them.
+    test "merges top and all flights, deduplicated by legs, not by price", %{html: html} do
+      assert {:ok, {_meta, flights}} = Parser.parse(html)
+
+      numbers =
+        for f <- flights, leg <- f.flights, do: leg.airline_code <> leg.flight_number
+
+      assert Enum.sort(numbers) ==
+               ~w(G31554 G31558 LA3318 LA3320 LA3324 LA3360 LA3506 LA3682 LA4776)
+    end
+
+    test "normalizes hour-only and minute-only times", %{html: html} do
+      assert {:ok, {_meta, flights}} = Parser.parse(html)
+      legs = Map.new(for f <- flights, leg <- f.flights, do: {leg.flight_number, leg})
+
+      assert legs["3682"].departure.time == ~T[07:00:00]
+      assert legs["3682"].arrival.time == ~T[10:25:00]
+      assert legs["1554"].departure.time == ~T[08:35:00]
+      assert legs["3682"].departure.date == ~D[2026-12-10]
+      # red-eye: leaves on the 10th, lands on the 11th
+      assert legs["3324"].arrival.date == ~D[2026-12-11]
+    end
+  end
+
+  test "expands time pairs that omit zero components" do
+    assert Parser.to_time([8]) == ~T[08:00:00]
+    assert Parser.to_time([nil, 31]) == ~T[00:31:00]
+    assert Parser.to_time([17, 25]) == ~T[17:25:00]
+    assert Parser.to_time(nil) == nil
+  end
+
+  test "returns :no_flights when Google answers with an error status" do
+    html =
+      ~s[<html><body><script class="ds:1">AF_initDataCallback({key: 'ds:1', data:null, errorHasStatus: true, sideChannel: {}});</script></body></html>]
+
+    assert {:error, :no_flights} = Parser.parse(html)
   end
 end

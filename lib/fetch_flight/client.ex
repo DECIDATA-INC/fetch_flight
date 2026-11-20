@@ -5,10 +5,11 @@ defmodule FetchFlight.Client do
     {"User-Agent",
      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"},
     {"Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"},
-    {"Accept-Language", "en-US,en;q=0.9"},
-    {"Accept-Encoding", "gzip, deflate"},
-    {"Connection", "keep-alive"}
+    {"Accept-Language", "en-US,en;q=0.9"}
   ]
+
+  # Do not set Accept-Encoding by hand: Req negotiates compression itself and,
+  # since 0.6, leaves the body compressed when the caller sets that header.
 
   @price_graph_url "https://www.google.com/_/FlightsFrontendUi/data/travel.frontend.flights.FlightsFrontendService/GetCalendarGraph"
 

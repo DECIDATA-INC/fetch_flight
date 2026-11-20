@@ -59,9 +59,9 @@ defmodule FetchFlight.Parser do
       [_, rest] ->
         data = rsplit_comma(rest)
 
-        case Jason.decode(data) do
-          {:ok, payload} -> {:ok, payload}
-          {:error, _} = err -> err
+        cond do
+          String.ends_with?(data, "errorHasStatus: true") -> {:error, :no_flights}
+          true -> Jason.decode(data)
         end
 
       _ ->
@@ -98,10 +98,16 @@ defmodule FetchFlight.Parser do
       |> Enum.flat_map(fn rows ->
         if is_list(rows), do: Enum.flat_map(rows, &parse_row/1), else: []
       end)
-      |> Enum.uniq_by(fn f -> {f.price, f.airlines, f.type} end)
+      |> Enum.uniq_by(&legs_key/1)
       |> Enum.sort_by(& &1.price)
 
     {:ok, {meta, flights}}
+  end
+
+  # Two itineraries are the same when they fly the same legs on the same dates.
+  # Price is not part of the identity: different flights often share a fare.
+  defp legs_key(%Flights{flights: legs}) do
+    Enum.map(legs, &{&1.airline_code, &1.flight_number, &1.departure})
   end
 
   defp at(nil, _), do: nil
@@ -153,15 +159,36 @@ defmodule FetchFlight.Parser do
   end
 
   defp parse_single_flight(sf) do
+    # sf[22] = [airline_code, flight_number, _, airline_name], e.g. ["LA", "3682", nil, "LATAM"]
+    flight_id = Enum.at(sf, 22)
+
     %SingleFlight{
       from_airport: %Airport{code: Enum.at(sf, 3), name: Enum.at(sf, 4)},
       to_airport: %Airport{code: Enum.at(sf, 6), name: Enum.at(sf, 5)},
-      departure: %SimpleDatetime{time: Enum.at(sf, 8), date: Enum.at(sf, 20)},
-      arrival: %SimpleDatetime{time: Enum.at(sf, 10), date: Enum.at(sf, 21)},
+      departure: %SimpleDatetime{time: to_time(Enum.at(sf, 8)), date: to_date(Enum.at(sf, 20))},
+      arrival: %SimpleDatetime{time: to_time(Enum.at(sf, 10)), date: to_date(Enum.at(sf, 21))},
       duration_minutes: Enum.at(sf, 11),
-      plane_type: Enum.at(sf, 17)
+      plane_type: Enum.at(sf, 17),
+      airline_code: at(flight_id, 0),
+      flight_number: at(flight_id, 1),
+      airline_name: at(flight_id, 3)
     }
   end
+
+  @doc """
+  Expands a Google time pair into a `Time`.
+
+  Google drops zero components: `[8]` is 08:00 and `[nil, 31]` is 00:31.
+  """
+  def to_time(nil), do: nil
+
+  def to_time(pair) when is_list(pair) do
+    [h, m | _] = pair ++ [nil, nil]
+    Time.new!(h || 0, m || 0, 0)
+  end
+
+  defp to_date([y, m, d | _]), do: Date.new!(y, m, d)
+  defp to_date(_), do: nil
 
   defp parse_carbon(nil), do: nil
 

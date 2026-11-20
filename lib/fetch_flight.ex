@@ -63,6 +63,9 @@ defmodule FetchFlight do
 
   alias FetchFlight.{Client, Parser, ProtoEncoder}
 
+  # PriceGraphBrowser only exists when the optional :playwright dep is present.
+  @compile {:no_warn_undefined, FetchFlight.PriceGraphBrowser}
+
   @type flight_data :: %{
           required(:date) => String.t(),
           required(:from_airport) => %{code: String.t()},
@@ -137,6 +140,11 @@ defmodule FetchFlight do
           {:ok, [FetchFlight.PriceGraphOffer.t()]} | {:error, term()}
   def get_price_graph(query, opts \\ []) do
     currency = Keyword.get(opts, :currency, "USD")
-    FetchFlight.PriceGraphBrowser.fetch(query, currency)
+
+    if Code.ensure_loaded?(FetchFlight.PriceGraphBrowser) do
+      FetchFlight.PriceGraphBrowser.fetch(query, currency)
+    else
+      {:error, :playwright_not_installed}
+    end
   end
 end
