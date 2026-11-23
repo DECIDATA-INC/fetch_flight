@@ -51,13 +51,14 @@ query = %{
 ### Options
 
 ```elixir
-FetchFlight.get_flights(query, language: "en", currency: "USD")
+FetchFlight.get_flights(query, language: "pt-BR", currency: "BRL", country: "BR")
 ```
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `:language` | `"en"` | BCP 47 language tag |
+| `:language` | `"en"` | BCP 47 language tag (also sets `Accept-Language`) |
 | `:currency` | `"USD"` | ISO 4217 currency code |
+| `:country` | none | ISO 3166-1 alpha-2 point of sale, sent as `gl`. Without it Google infers the country from the caller's IP, so a server abroad sees another market's fares converted to `:currency`. |
 
 ### Query fields
 
