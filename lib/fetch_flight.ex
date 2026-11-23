@@ -106,6 +106,9 @@ defmodule FetchFlight do
 
     * `:language` - BCP 47 language tag, e.g. `"en"` (default: `"en"`)
     * `:currency` - ISO 4217 currency code, e.g. `"USD"` (default: `"USD"`)
+    * `:country` - ISO 3166-1 alpha-2 point of sale, e.g. `"BR"` (default: none,
+      Google infers it from the caller's IP). Set it when the server runs in
+      another country than the buyer: fares differ per market.
 
   Returns `{:ok, {JsMetadata.t(), [Flights.t()]}}` or `{:error, reason}`.
   The `JsMetadata` struct includes a `link` field with the Google Flights URL for the query.
@@ -115,13 +118,20 @@ defmodule FetchFlight do
   def get_flights(query, opts \\ []) do
     language = Keyword.get(opts, :language, "en")
     currency = Keyword.get(opts, :currency, "USD")
+    country = Keyword.get(opts, :country)
 
     with tfs <- ProtoEncoder.to_tfs_param(query),
-         {:ok, html} <- Client.fetch(tfs, language, currency),
+         {:ok, html} <- Client.fetch(tfs, language, currency, country),
          {:ok, {meta, flights}} <- Parser.parse(html) do
-      link = "https://www.google.com/travel/flights?tfs=#{tfs}&hl=#{language}&curr=#{currency}"
-      {:ok, {%{meta | link: link}, flights}}
+      {:ok, {%{meta | link: link(tfs, language, currency, country)}, flights}}
     end
+  end
+
+  @doc false
+  # The Google Flights URL of the same search, for a human to open.
+  def link(tfs, language, currency, country) do
+    base = "https://www.google.com/travel/flights?tfs=#{tfs}&hl=#{language}&curr=#{currency}"
+    if country in [nil, ""], do: base, else: base <> "&gl=#{country}"
   end
 
   @doc """
